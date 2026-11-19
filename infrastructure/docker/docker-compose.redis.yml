@@ -1,0 +1,15 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ledgerguard-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  redis_data:
+    external: true
+    name: 6b56360e75162e43d17fdf0c481aab28f35d63b3e3f220dfadf2a852b3f8dff5
