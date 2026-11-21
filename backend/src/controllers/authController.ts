@@ -14,69 +14,23 @@ import {
   HttpStatus
 } from '@shared/types/api.types';
 import { LoginInput, RefreshTokenInput } from '../validators/authValidator';
+import {
+  IUserRepository,
+  InMemoryUserRepository,
+  getUserRepository,
+  setUserRepository,
+  MongoUserRepository,
+  mapMongoUserToDomain
+} from '../repositories/userRepository';
 
-/**
- * Interface for User data operations.
- * Allows seamless plugging into Aniket's Mongoose model when ready.
- */
-export interface IUserRepository {
-  findByEmail(email: string): Promise<IUser | null>;
-  findById(id: string): Promise<IUser | null>;
-  create(user: Omit<IUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<IUser>;
-}
-
-/**
- * In-memory repository for initial development and isolated testing
- */
-export class InMemoryUserRepository implements IUserRepository {
-  private users = new Map<string, IUser>();
-
-  async findByEmail(email: string): Promise<IUser | null> {
-    for (const user of this.users.values()) {
-      if (user.email.toLowerCase() === email.toLowerCase()) {
-        return user;
-      }
-    }
-    return null;
-  }
-
-  async findById(id: string): Promise<IUser | null> {
-    return this.users.get(id) || null;
-  }
-
-  async create(userData: Omit<IUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<IUser> {
-    const id = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const now = new Date();
-    const newUser: IUser = {
-      ...userData,
-      id,
-      createdAt: now,
-      updatedAt: now
-    };
-    this.users.set(id, newUser);
-    return newUser;
-  }
-
-  // Helper for test seeding
-  seedUser(user: IUser): void {
-    this.users.set(user.id, user);
-  }
-
-  clear(): void {
-    this.users.clear();
-  }
-}
-
-// Active user repository (defaults to in-memory, pluggable for Mongoose)
-let activeUserRepository: IUserRepository = new InMemoryUserRepository();
-
-export function setUserRepository(repo: IUserRepository): void {
-  activeUserRepository = repo;
-}
-
-export function getUserRepository(): IUserRepository {
-  return activeUserRepository;
-}
+export {
+  IUserRepository,
+  InMemoryUserRepository,
+  getUserRepository,
+  setUserRepository,
+  MongoUserRepository,
+  mapMongoUserToDomain
+};
 
 /**
  * Fixed precomputed dummy bcrypt hash (cost factor 12, matching BCRYPT_SALT_ROUNDS).
@@ -95,7 +49,8 @@ export async function login(
   const { email, password } = req.body;
 
   try {
-    const user = await activeUserRepository.findByEmail(email);
+    const userRepo = getUserRepository();
+    const user = await userRepo.findByEmail(email);
 
     // Timing-attack mitigation:
     // If user exists, compare against stored hash; if user does not exist, run comparison against dummy hash.
@@ -187,7 +142,8 @@ export async function refresh(
   try {
     const decoded = verifyRefreshToken(refreshToken);
 
-    const user = await activeUserRepository.findById(decoded.sub);
+    const userRepo = getUserRepository();
+    const user = await userRepo.findById(decoded.sub);
     if (!user || !user.isActive) {
       res.status(HttpStatus.UNAUTHORIZED).json({
         success: false,
