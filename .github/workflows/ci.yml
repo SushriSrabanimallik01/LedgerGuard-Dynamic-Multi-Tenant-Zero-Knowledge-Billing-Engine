@@ -1,0 +1,51 @@
+
+name: LedgerGuard CI
+
+on:
+  push:
+    branches:
+      - Purnima
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Run Redis infrastructure tests
+        run: |
+          docker run -d \
+            --name ledgerguard-test-redis \
+            -p 6379:6379 \
+            redis:7-alpine
+
+          for i in {1..10}; do
+            if docker exec ledgerguard-test-redis redis-cli ping; then
+              break
+            fi
+            sleep 2
+          done
+
+          cd backend
+          npm test
