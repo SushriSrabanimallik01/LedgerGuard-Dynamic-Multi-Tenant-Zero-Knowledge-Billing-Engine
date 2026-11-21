@@ -1,0 +1,31 @@
+
+groups:
+  - name: ledgerguard-redis-alerts
+    rules:
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis is unavailable
+          description: Redis server is not responding.
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes > 524288000
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Redis memory usage is high
+          description: Redis memory usage has exceeded 500 MB.
+
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Too many Redis connections
+          description: Redis has more than 100 connected clients.

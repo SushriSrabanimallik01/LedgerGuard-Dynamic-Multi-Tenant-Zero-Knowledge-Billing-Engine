@@ -59,10 +59,31 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     depends_on:
       - redis-exporter
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ledgerguard-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ChangeThisPassword123!
+
 volumes:
   redis_data:
+    name: ledgerguard-redis-data
+
   prometheus_data:
+    name: ledgerguard-prometheus-data
+
+  grafana_data:
+    name: ledgerguard-grafana-data

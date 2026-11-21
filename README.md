@@ -1,11 +1,11 @@
-
 # LedgerGuard: Dynamic Multi-Tenant Zero-Knowledge Billing Engine
 
-A secure and scalable billing engine designed to support multiple tenants with reliable transaction processing, Redis caching, distributed locking, and secure data management.
+A secure and scalable billing engine designed to support multiple tenants with reliable transaction processing, Redis caching, distributed locking, Docker deployment, and infrastructure monitoring.
 
 ## Project Overview
 
 LedgerGuard aims to provide:
+
 - Multi-tenant data isolation
 - Secure authentication and authorization
 - Redis caching
@@ -13,23 +13,25 @@ LedgerGuard aims to provide:
 - Duplicate transaction prevention
 - Reliable billing operations
 - Docker-based deployment
-- Monitoring and testing
+- Infrastructure monitoring and testing
 
 ## Technology Stack
 
 ### Backend
 - Node.js
 - TypeScript
-- Express.js (planned)
 - Redis
+- Express.js (planned)
 
 ### Database
 - MongoDB (planned)
 
-### DevOps
+### DevOps and Monitoring
 - Docker
 - Docker Compose
-- Redis
+- Prometheus
+- Grafana
+- Redis Exporter
 
 ### Testing
 - Node.js Test Runner
@@ -40,23 +42,31 @@ LedgerGuard aims to provide:
 ```text
 LedgerGuard/
 |
+|-- .github/
+|   |-- workflows/
+|       |-- ci.yml
+|
 |-- backend/
 |   |-- src/
 |   |   |-- config/
+|   |   |   |-- redis.ts
 |   |   |-- redis/
+|   |   |   |-- cacheManager.ts
+|   |   |   |-- redisHelpers.ts
+|   |   |   |-- redisLock.ts
 |   |   |-- index.ts
 |   |-- Dockerfile
 |   |-- package.json
 |   |-- tsconfig.json
-|   |-- .env.example
 |
 |-- infrastructure/
-|   |-- docker/
-|   |-- deployment/
 |   |-- monitoring/
+|       |-- prometheus.yml
+|       |-- alerts.yml
 |
 |-- tests/
 |   |-- infrastructure/
+|       |-- redis.test.ts
 |
 |-- docker-compose.yml
 |-- README.md
@@ -70,16 +80,17 @@ LedgerGuard/
 - Distributed locking
 - Lock acquisition and release
 - Automatic key expiration
+- Duplicate operation prevention
 
 ## Docker Deployment
 
-Build and start containers:
+Build and start all services:
 
 ```bash
 docker compose up --build -d
 ```
 
-Check containers:
+Check running containers:
 
 ```bash
 docker compose ps
@@ -97,11 +108,34 @@ Stop containers:
 docker compose down
 ```
 
+## Monitoring
+
+LedgerGuard uses Prometheus, Redis Exporter, and Grafana for infrastructure monitoring.
+
+### Monitoring Services
+
+| Service | URL |
+|---|---|
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3001 |
+| Redis Exporter | http://localhost:9121/metrics |
+
+### Grafana Dashboard
+
+Grafana provides Redis monitoring dashboards, including:
+
+- Redis memory usage
+- Connected clients
+- Total commands
+- Cache hits and misses
+- Network I/O
+- Database statistics
+
+Configure Prometheus as the Grafana data source and import a Redis Exporter dashboard.
+
 ## Environment Configuration
 
-Create a `.env` file inside the backend folder.
-
-Configure the following variables:
+Create a `.env` file inside the backend folder if running the application locally.
 
 ```env
 PORT=3000
@@ -112,17 +146,31 @@ Never upload actual environment secrets to GitHub.
 
 ## Testing
 
-Run Redis infrastructure tests:
-
-```bash
-cd backend
-npx tsx --test ../tests/infrastructure/redis.test.ts
-```
-
 Build the backend:
 
 ```bash
+cd backend
 npm run build
+```
+
+Run Redis infrastructure tests:
+
+```bash
+npm test
+```
+
+## Continuous Integration
+
+GitHub Actions automatically runs:
+
+- Dependency installation
+- Backend TypeScript build
+- Redis infrastructure tests
+
+Workflow location:
+
+```text
+.github/workflows/ci.yml
 ```
 
 ## Current Implementation
@@ -134,6 +182,10 @@ npm run build
 - Docker containerization
 - Docker health checks
 - Redis infrastructure tests
+- Prometheus monitoring
+- Redis Exporter integration
+- Grafana dashboard
+- GitHub Actions CI workflow
 
 ## Future Implementation
 
@@ -142,4 +194,4 @@ npm run build
 - MongoDB integration
 - Zero-knowledge security features
 - Transaction management
-- Monitoring and analytics
+- Advanced monitoring and analytics
