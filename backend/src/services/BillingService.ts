@@ -1,4 +1,5 @@
  import BillingRecord, { IBillingRecord } from "../models/BillingRecord";
+ import { recordTransaction } from "./ledgerService";
 
 export async function processPayment(
   tenantId: string,
@@ -19,6 +20,14 @@ export async function processPayment(
     transactionId,
     status: "paid", 
   });
+  // Write to the permanent ledger
+await recordTransaction(
+  tenantId, 
+  amount, 
+  "CREDIT", 
+  "Payment for services", 
+  transactionId
+);
 
   return newRecord;
 }
