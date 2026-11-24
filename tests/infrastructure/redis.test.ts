@@ -58,3 +58,16 @@ test("Redis lock should prevent duplicate access", async () => {
 
     await releaseLock(key, "user-2");
 });
+
+
+test("Redis cache should delete stored data", async () => {
+    const key = `test:delete:${randomUUID()}`;
+
+    await setCache(key, { name: "LedgerGuard" });
+
+    await deleteCache(key);
+
+    const result = await getCache(key);
+
+    assert.equal(result, null);
+});
