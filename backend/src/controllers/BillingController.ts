@@ -1,16 +1,17 @@
 import { Request, Response } from "express";
 import { processPayment } from "../services/BillingService";
+import { validatePaymentData } from "../validators/billingvalidator";
 
 export async function handlePayment(req: Request, res: Response): Promise<void> {
   try {
-    const { tenantId, amount, transactionId } = req.body;
+const validationError = validatePaymentData(req.body);
+if (validationError) {
+  res.status(400).json({ error: validationError });
+  return;
+}
 
-    if (!tenantId || !amount || !transactionId) {
-      res.status(400).json({ error: "Missing required fields" });
-      return;
-    }
-
-    const record = await processPayment(tenantId, amount, transactionId);
+ const { tenantId, amount, transactionId } = req.body;   
+const record = await processPayment(tenantId, amount, transactionId);
 
     res.status(200).json({
       message: "Payment processed successfully",

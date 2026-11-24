@@ -1,5 +1,6 @@
- import BillingRecord, { IBillingRecord } from "../models/BillingRecord";
- import { recordTransaction } from "./ledgerService";
+import BillingRecord, { IBillingRecord } from "../models/BillingRecord";
+import { recordTransaction } from "./ledgerService";
+import { checkIdempotency } from "./idempotencyService";
 
 export async function processPayment(
   tenantId: string,
@@ -7,27 +8,29 @@ export async function processPayment(
   transactionId: string
 ): Promise<IBillingRecord> {
   
-  const existingRecord = await BillingRecord.findOne({ transactionId });
+  // 1. Idempotency Check: Prevent double charging
+  const existingRecord = await checkIdempotency(transactionId);
   
   if (existingRecord) {
-    console.log("⚠️ Duplicate transaction detected. Preventing double charge.");
     return existingRecord; 
   }
 
+  // 2. Process new payment
   const newRecord = await BillingRecord.create({
     tenantId,
     amount,
     transactionId,
     status: "paid", 
   });
-  // Write to the permanent ledger
-await recordTransaction(
-  tenantId, 
-  amount, 
-  "CREDIT", 
-  "Payment for services", 
-  transactionId
-);
+
+  // 3. Write to the permanent ledger
+  await recordTransaction(
+    tenantId, 
+    amount, 
+    "CREDIT", 
+    "Payment for services", 
+    transactionId
+  );
 
   return newRecord;
 }
