@@ -1,0 +1,46 @@
+{
+  "name": "ledgerguard",
+  "version": "1.0.0",
+  "description": "LedgerGuard: Dynamic Multi-Tenant Zero-Knowledge Billing Engine",
+  "main": "dist/backend/src/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/backend/src/server.js",
+    "dev": "ts-node backend/src/server.ts",
+    "test": "jest --runInBand",
+    "test:security": "jest --testPathPattern=tests/security --runInBand --verbose"
+  },
+  "keywords": [
+    "billing",
+    "multi-tenant",
+    "zero-knowledge",
+    "jwt",
+    "rsa",
+    "security"
+  ],
+  "author": "LedgerGuard Team",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.17.6",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}
