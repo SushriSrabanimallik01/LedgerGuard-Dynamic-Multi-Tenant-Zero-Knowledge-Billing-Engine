@@ -1,7 +1,6 @@
 
-import { test, before, after } from "node:test";
-import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import assert from "node:assert/strict";
 
 import {
     connectRedis,
@@ -19,14 +18,17 @@ import {
     releaseLock
 } from "../../backend/src/redis/redisLock";
 
-before(async () => {
+// Connect Redis before all tests
+beforeAll(async () => {
     await connectRedis();
 });
 
-after(async () => {
+// Disconnect Redis after all tests
+afterAll(async () => {
     await disconnectRedis();
 });
 
+// Test 1: Store and retrieve cache
 test("Redis cache should store and retrieve data", async () => {
     const key = `test:cache:${randomUUID()}`;
 
@@ -39,6 +41,7 @@ test("Redis cache should store and retrieve data", async () => {
     await deleteCache(key);
 });
 
+// Test 2: Distributed lock
 test("Redis lock should prevent duplicate access", async () => {
     const key = `test:lock:${randomUUID()}`;
 
@@ -59,7 +62,7 @@ test("Redis lock should prevent duplicate access", async () => {
     await releaseLock(key, "user-2");
 });
 
-
+// Test 3: Delete cache
 test("Redis cache should delete stored data", async () => {
     const key = `test:delete:${randomUUID()}`;
 
