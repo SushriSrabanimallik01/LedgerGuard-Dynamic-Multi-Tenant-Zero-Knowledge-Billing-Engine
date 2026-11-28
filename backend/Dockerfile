@@ -8,8 +8,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY tsconfig.json ./
-
-COPY src ./src
+COPY backend ./backend
+COPY shared ./shared
+COPY tests ./tests
 
 RUN npm run build
 
