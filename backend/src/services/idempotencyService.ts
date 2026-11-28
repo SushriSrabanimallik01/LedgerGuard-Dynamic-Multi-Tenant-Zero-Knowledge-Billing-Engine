@@ -1,4 +1,5 @@
-import BillingRecord, { IBillingRecord } from "../models/BillingRecord";
+import BillingRecord from "../models/BillingRecord";
+import { IBillingRecord } from "../shared/types/billing.types";
 
 export async function checkIdempotency(transactionId: string): Promise<IBillingRecord | null> {
   const existingRecord = await BillingRecord.findOne({ transactionId });

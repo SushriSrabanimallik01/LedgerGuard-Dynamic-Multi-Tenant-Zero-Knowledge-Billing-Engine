@@ -1,4 +1,5 @@
-import LedgerEntry, { ILedgerEntry } from "../models/LedgerEntry";
+import LedgerEntry from "../models/LedgerEntry";
+import { ILedgerEntry } from "../shared/types/billing.types";
 
 export async function recordTransaction(
   tenantId: string,

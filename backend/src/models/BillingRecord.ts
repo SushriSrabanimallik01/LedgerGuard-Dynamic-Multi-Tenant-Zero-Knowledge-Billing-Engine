@@ -1,11 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
+import { IBillingRecord } from "../shared/types/billing.types";
 
-export interface IBillingRecord extends Document {
-  tenantId: string;
-  amount: number;
-  status: "pending" | "paid" | "failed";
-  transactionId: string;
-}
+export interface IBillingRecordDocument extends IBillingRecord, Document {}
 
 const BillingRecordSchema: Schema = new Schema(
   {
@@ -17,4 +13,4 @@ const BillingRecordSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-export default mongoose.model<IBillingRecord>("BillingRecord", BillingRecordSchema);
+export default mongoose.model<IBillingRecordDocument>("BillingRecord", BillingRecordSchema);

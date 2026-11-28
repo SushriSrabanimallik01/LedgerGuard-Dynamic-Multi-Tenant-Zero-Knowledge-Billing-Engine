@@ -1,4 +1,6 @@
-import BillingRecord, { IBillingRecord } from "../models/BillingRecord";
+import BillingRecord from "../models/BillingRecord";
+import { IBillingRecord } from "../shared/types/billing.types";
+
 import { recordTransaction } from "./ledgerService";
 import { checkIdempotency } from "./idempotencyService";
 

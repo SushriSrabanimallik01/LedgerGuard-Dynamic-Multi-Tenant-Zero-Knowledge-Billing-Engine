@@ -1,12 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
+import { ILedgerEntry } from "../shared/types/billing.types";
 
-export interface ILedgerEntry extends Document {
-  tenantId: string;
-  amount: number;
-  type: "CREDIT" | "DEBIT";
-  description: string;
-  transactionId: string;
-}
+export interface ILedgerEntryDocument extends ILedgerEntry, Document {}
 
 const LedgerEntrySchema: Schema = new Schema(
   {
@@ -19,4 +14,4 @@ const LedgerEntrySchema: Schema = new Schema(
   { timestamps: true }
 );
 
-export default mongoose.model<ILedgerEntry>("LedgerEntry", LedgerEntrySchema);
+export default mongoose.model<ILedgerEntryDocument>("LedgerEntry", LedgerEntrySchema);
