@@ -1,10 +1,13 @@
 import express, { Request, Response } from 'express';
 import request from 'supertest';
+import app from '../../backend/src/app';
 import {
   createConfiguredLimiter,
   RedisRateLimitStore,
   IRedisClientLike,
-  LUA_INCR_EXPIRE
+  LUA_INCR_EXPIRE,
+  authRateLimitStore,
+  generalRateLimitStore
 } from '../../backend/src/middleware/rateLimiter';
 import { ErrorCode } from '../../shared/types/api.types';
 
@@ -397,5 +400,86 @@ describe('Security: Redis-Backed Rate Limiter Integration Assessment', () => {
     await store.decrement('client_ip');
     const storedAfter = mockRedis.data.get('rl:test_decr:client_ip');
     expect(storedAfter?.value).toBe(1);
+  });
+
+  // 10. Recovery Behavior After Outage
+  it('10. Recovery behavior: recovers seamlessly to Redis counters once connectivity is restored', async () => {
+    const store = new RedisRateLimitStore({
+      client: mockRedis,
+      prefix: 'rl:test_recovery:',
+      windowMs: 60 * 1000
+    });
+
+    // Step 1: Normal operation in Redis
+    const res1 = await store.increment('recovery_ip');
+    expect(res1.totalHits).toBe(1);
+    expect(mockRedis.evalCallCount).toBe(1);
+
+    // Step 2: Outage occurs
+    mockRedis.forceFailure = true;
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const res2 = await store.increment('recovery_ip');
+    expect(res2.totalHits).toBe(1); // Internal memory fallback started at 1
+    warnSpy.mockRestore();
+
+    // Step 3: Outage resolves / connection restored
+    mockRedis.forceFailure = false;
+    const res3 = await store.increment('recovery_ip');
+    // Seamlessly resumed using Redis Lua counter (was at 1, now increments to 2)
+    expect(res3.totalHits).toBe(2);
+    // 1 initial + 2 attempts during failure (object format + positional fallback) + 1 post-recovery = 4
+    expect(mockRedis.evalCallCount).toBe(4);
+  });
+
+  // 11. Auth Limiter Integration
+  it('11. Auth limiter integration: wires Redis store to authentication routes and enforces 10-attempt threshold', async () => {
+    const originalClient = authRateLimitStore.getClient();
+    authRateLimitStore.setClient(mockRedis);
+
+    try {
+      // Send 10 login requests (threshold is 10 attempts per 15m)
+      for (let i = 0; i < 10; i++) {
+        const res = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'nonexistent@example.com', password: 'Password123!' });
+        // Request passes limiter (rejected by auth with 401, not 429)
+        expect(res.status).toBe(401);
+      }
+
+      // 11th request must be blocked with 429
+      const blockedRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'nonexistent@example.com', password: 'Password123!' });
+      expect(blockedRes.status).toBe(429);
+      expect(blockedRes.body.error.code).toBe(ErrorCode.RATE_LIMIT_EXCEEDED);
+
+      // Verify that Redis was indeed used with 'rl:auth:' prefix
+      const hasAuthKey = Array.from(mockRedis.data.keys()).some((k) => k.startsWith('rl:auth:'));
+      expect(hasAuthKey).toBe(true);
+    } finally {
+      authRateLimitStore.setClient(originalClient);
+      await authRateLimitStore.resetAll();
+    }
+  });
+
+  // 12. General API Limiter Integration
+  it('12. General API limiter integration: wires Redis store to general API routes with shared counters', async () => {
+    const originalClient = generalRateLimitStore.getClient();
+    generalRateLimitStore.setClient(mockRedis);
+
+    try {
+      const res = await request(app).get('/health');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.service).toBe('LedgerGuard');
+
+      // Verify that Redis key was touched with 'rl:general:' prefix
+      const hasGeneralKey = Array.from(mockRedis.data.keys()).some((k) => k.startsWith('rl:general:'));
+      expect(hasGeneralKey).toBe(true);
+    } finally {
+      generalRateLimitStore.setClient(originalClient);
+      await generalRateLimitStore.resetAll();
+    }
   });
 });

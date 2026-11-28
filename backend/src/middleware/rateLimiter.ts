@@ -2,6 +2,7 @@ import rateLimit, { Options, Store, IncrementResponse, MemoryStore } from 'expre
 import { Request, Response } from 'express';
 import { ApiResponseError, ErrorCode, HttpStatus } from '@shared/types/api.types';
 import { securityConfig } from '../security/securityConfig';
+import redisClient from '../config/redis';
 
 /**
  * Atomic Lua script for rate limiting in Redis.
@@ -35,6 +36,7 @@ export interface IRedisClientLike {
   set?(key: string, value: string, options?: unknown): Promise<unknown>;
   del?(key: string): Promise<number | unknown>;
   incr?(key: string): Promise<number>;
+  decr?(key: string): Promise<number>;
   pExpire?(key: string, milliseconds: number): Promise<number | boolean>;
   pTTL?(key: string): Promise<number>;
 }
@@ -175,11 +177,22 @@ export class RedisRateLimitStore implements Store {
     return this.fallbackStore.increment(key);
   }
 
+  getClient(): IRedisClientLike {
+    return this.client;
+  }
+
+  setClient(client: IRedisClientLike): void {
+    (this as any).client = client;
+  }
+
   async decrement(key: string): Promise<void> {
     const prefixedKey = `${this.prefix}${key}`;
     if (this.client.isReady || this.client.isOpen) {
       try {
-        if (typeof this.client.sendCommand === 'function') {
+        if (typeof this.client.decr === 'function') {
+          await this.client.decr(prefixedKey);
+          return;
+        } else if (typeof this.client.sendCommand === 'function') {
           await this.client.sendCommand(['DECR', prefixedKey]);
           return;
         }
@@ -241,7 +254,16 @@ export function createConfiguredLimiter(options: {
 }
 
 /**
- * General API rate limiter (Default In-Memory)
+ * General API rate limiting store wired to Purnima's Redis client
+ */
+export const generalRateLimitStore = new RedisRateLimitStore({
+  client: redisClient,
+  prefix: 'rl:general:',
+  windowMs: securityConfig.rateLimit.windowMs
+});
+
+/**
+ * General API rate limiter (Redis-Backed with Bounded In-Memory Fallback)
  * Protects endpoints from high-volume automated abuse (100 requests per 15 min).
  */
 export const generalRateLimiter = rateLimit({
@@ -249,11 +271,21 @@ export const generalRateLimiter = rateLimit({
   max: securityConfig.rateLimit.maxRequests,     // 100 requests per window
   standardHeaders: true,                        // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false,                         // Disable `X-RateLimit-*` headers
-  handler: rateLimitHandler
+  handler: rateLimitHandler,
+  store: generalRateLimitStore
 } as Partial<Options>);
 
 /**
- * Strict rate limiter for Authentication endpoints (Default In-Memory)
+ * Strict authentication rate limiting store wired to Purnima's Redis client
+ */
+export const authRateLimitStore = new RedisRateLimitStore({
+  client: redisClient,
+  prefix: 'rl:auth:',
+  windowMs: securityConfig.rateLimit.windowMs
+});
+
+/**
+ * Strict rate limiter for Authentication endpoints (Redis-Backed with Bounded In-Memory Fallback)
  * Mitigates brute-force credential stuffing and password guessing attacks (10 attempts per 15 min).
  */
 export const authRateLimiter = rateLimit({
@@ -261,5 +293,6 @@ export const authRateLimiter = rateLimit({
   max: securityConfig.rateLimit.authMaxRequests, // 10 attempts per window
   standardHeaders: true,
   legacyHeaders: false,
-  handler: rateLimitHandler
+  handler: rateLimitHandler,
+  store: authRateLimitStore
 } as Partial<Options>);

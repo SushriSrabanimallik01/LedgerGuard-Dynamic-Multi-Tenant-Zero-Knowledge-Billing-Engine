@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import { generalRateLimiter } from './middleware/rateLimiter';
+import redisClient from './config/redis';
 import { ApiResponseError, ErrorCode, HttpStatus } from '@shared/types/api.types';
 
 const app = express();
@@ -98,7 +99,11 @@ app.get('/health', (_req: Request, res: Response) => {
   res.status(HttpStatus.OK).json({
     success: true,
     message: 'LedgerGuard API Gateway healthy',
-    data: { timestamp: new Date().toISOString() }
+    data: {
+      timestamp: new Date().toISOString(),
+      service: 'LedgerGuard',
+      redis: redisClient.isReady || redisClient.isOpen ? 'connected' : 'disconnected'
+    }
   });
 });
 
