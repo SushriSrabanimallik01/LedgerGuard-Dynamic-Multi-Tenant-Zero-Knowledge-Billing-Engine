@@ -74,3 +74,40 @@ test("Redis cache should delete stored data", async () => {
 
     assert.equal(result, null);
 });
+// Test 4: Lock should not be released by another owner
+test("Redis lock should not be released by a different owner", async () => {
+    const key = `test:lock-owner:${randomUUID()}`;
+
+    const acquired = await acquireLock(key, "owner-1");
+
+    assert.equal(acquired, true);
+
+    const released = await releaseLock(key, "owner-2");
+
+    assert.equal(released, false);
+
+    // Original owner should still hold the lock
+    const secondAttempt = await acquireLock(key, "owner-2");
+
+    assert.equal(secondAttempt, false);
+
+    await releaseLock(key, "owner-1");
+});
+
+// Test 5: Redis lock should expire automatically
+test("Redis lock should expire after its TTL", async () => {
+    const key = `test:lock-expiry:${randomUUID()}`;
+
+    const first = await acquireLock(key, "owner-1", 2);
+
+    assert.equal(first, true);
+
+    // Wait for the 2-second lock expiry
+    await new Promise(resolve => setTimeout(resolve, 2500));
+
+    const second = await acquireLock(key, "owner-2");
+
+    assert.equal(second, true);
+
+    await releaseLock(key, "owner-2");
+});
