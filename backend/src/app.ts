@@ -1,43 +1,42 @@
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+
 import authRoutes from './routes/authRoutes';
+import billingRoutes from './routes/billingRoutes';
+import analyticsRoutes from './routes/analyticsRoutes';
+import ledgerRoutes from './routes/ledgerRoutes';
+
 import { generalRateLimiter } from './middleware/rateLimiter';
 import redisClient from './config/redis';
-import { ApiResponseError, ErrorCode, HttpStatus } from '@shared/types/api.types';
+
+import {
+  ApiResponseError,
+  ErrorCode,
+  HttpStatus
+} from '@shared/types/api.types';
 
 const app = express();
 
 export function resolveTrustProxySetting(
   rawEnvVal: string | undefined = process.env.TRUST_PROXY
 ): boolean | number | string {
-  if (rawEnvVal === undefined || rawEnvVal === null) {
-    return false;
-  }
+  if (rawEnvVal === undefined || rawEnvVal === null) return false;
 
   const envVal = rawEnvVal.trim();
 
-  if (envVal === '' || envVal.toLowerCase() === 'false' || envVal === '0') {
-    return false;
-  }
-
-  if (envVal.toLowerCase() === 'true') {
-    return true;
-  }
+  if (envVal === '' || envVal.toLowerCase() === 'false' || envVal === '0') return false;
+  if (envVal.toLowerCase() === 'true') return true;
 
   if (/^[1-9]\d*$/.test(envVal)) {
     const hops = Number(envVal);
-    if (Number.isSafeInteger(hops)) {
-      return hops;
-    }
+    if (Number.isSafeInteger(hops)) return hops;
   }
 
   const lower = envVal.toLowerCase();
   const validKeywords = ['loopback', 'linklocal', 'uniquelocal'];
 
-  if (validKeywords.includes(lower)) {
-    return lower;
-  }
+  if (validKeywords.includes(lower)) return lower;
 
   const tokens = envVal.split(',').map((t) => t.trim().toLowerCase());
 
@@ -49,16 +48,12 @@ export function resolveTrustProxySetting(
       return parts.every((p) => p >= 0 && p <= 255);
     }
 
-    if (/^[0-9a-f:]+(\/\d{1,3})?$/i.test(t) && t.includes(':')) {
-      return true;
-    }
+    if (/^[0-9a-f:]+(\/\d{1,3})?$/i.test(t) && t.includes(':')) return true;
 
     return false;
   };
 
-  if (tokens.length > 0 && tokens.every(isValidToken)) {
-    return envVal;
-  }
+  if (tokens.length > 0 && tokens.every(isValidToken)) return envVal;
 
   console.warn(
     `[LedgerGuard] Warning: Invalid or malformed TRUST_PROXY value "${rawEnvVal}". Falling back to safe default: false.`
@@ -69,15 +64,12 @@ export function resolveTrustProxySetting(
 
 app.set('trust proxy', resolveTrustProxySetting());
 
-// Security and parser middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// General rate limiting
 app.use(generalRateLimiter);
 
-// Liveness check: API process is running
 app.get('/health', (_req: Request, res: Response) => {
   res.status(HttpStatus.OK).json({
     success: true,
@@ -90,7 +82,6 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// Readiness check: API and Redis are ready
 app.get('/ready', (_req: Request, res: Response) => {
   const redisReady = redisClient.isReady;
 
@@ -115,14 +106,11 @@ app.get('/ready', (_req: Request, res: Response) => {
   });
 });
 
-// Authentication routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/billing', billingRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/ledger', ledgerRoutes);
 
-// Billing and ledger routes will be mounted after team integration
-// app.use('/api/v1/billing', billingRoutes);
-// app.use('/api/v1/ledger', ledgerRoutes);
-
-// 404 handler
 app.use((_req: Request, res: Response<ApiResponseError>) => {
   res.status(HttpStatus.NOT_FOUND).json({
     success: false,
@@ -133,7 +121,6 @@ app.use((_req: Request, res: Response<ApiResponseError>) => {
   });
 });
 
-// Centralized error handler
 app.use(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   (err: Error, _req: Request, res: Response<ApiResponseError>, _next: NextFunction) => {
